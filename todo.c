@@ -1,270 +1,242 @@
-﻿#define _CRT_SECURE_NO_WARNINGS
-
+// todo.c
+#define _CRT_SECURE_NO_WARNINGS
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 #include "todo.h"
 
-// Glava liste zadataka
+// Glava povezane liste
 Zadatak* glava = NULL;
-int zadnjiID = 0;
 
-// Dodavanje novog zadatka
-void dodajZadatak() {
-    Zadatak* novi = malloc(sizeof(Zadatak));
-    if (!novi) return;
-
-    (*novi).id = ++zadnjiID;
-
-    printf("Unesi naziv zadatka: ");
-    fgets((*novi).naziv, MAX_NAZIV, stdin);
-    (*novi).naziv[strcspn((*novi).naziv, "\n")] = '\0';
-
-    printf("Unesi opis zadatka: ");
-    fgets((*novi).opis, MAX_OPIS, stdin);
-    (*novi).opis[strcspn((*novi).opis, "\n")] = '\0';
-
-    printf("Prioritet (1-Nizak, 2-Srednji, 3-Visok): ");
-    int p; scanf("%d", &p); getchar();
-    (*novi).prioritet = (Prioritet)p;
-
-    (*novi).sljedeci = glava;
-    glava = novi;
-
-    printf("Zadatak dodan.\n");
-}
-
-// Rekurzivni ispis zadataka
-void ispisiRekurzivno(Zadatak* z) {
-    if (!z) return;
-
-    printf("\nID: %d\nNaziv: %s\nOpis: %s\nPrioritet: %d\n",
-        (*z).id, (*z).naziv, (*z).opis, (*z).prioritet);
-
-    ispisiRekurzivno((*z).sljedeci);
-}
-
-// Ispis svih zadataka
-void prikaziZadatke() {
-    if (!glava) {
-        printf("Nema zadataka.\n");
-        return;
-    }
-
-    ispisiRekurzivno(glava);
-}
-
-// Trazi zadatak po ID
-Zadatak* nadjiZadatak(int id) {
+// Funkcija koja automatski generira sljedeći ID
+static int dajSljedeciID() {
+    int maxID = 0;
     Zadatak* p = glava;
     while (p) {
-        if ((*p).id == id) return p;
-        p = (*p).sljedeci;
+        if (p->id > maxID)
+            maxID = p->id;
+        p = p->sljedeci;
     }
-    return NULL;
+    return maxID + 1;
 }
 
-// Azuriranje zadatka
-void azurirajZadatak() {
-    int id;
-    printf("Unesi ID zadatka: ");
-    scanf("%d", &id); getchar();
+// Učitavanje zadataka iz .txt datoteke
+void ucitajIzDatoteke() {
+    FILE* dat = fopen(NAZIV_DATOTEKE, "r");
+    if (!dat) return;
 
-    Zadatak* z = nadjiZadatak(id);
-    if (!z) {
-        printf("Zadatak nije pronadjen.\n");
-        return;
-    }
-
-    printf("Novi naziv: ");
-    fgets((*z).naziv, MAX_NAZIV, stdin);
-    (*z).naziv[strcspn((*z).naziv, "\n")] = '\0';
-
-    printf("Novi opis: ");
-    fgets((*z).opis, MAX_OPIS, stdin);
-    (*z).opis[strcspn((*z).opis, "\n")] = '\0';
-
-    printf("Novi prioritet: ");
-    int p; scanf("%d", &p); getchar();
-    (*z).prioritet = (Prioritet)p;
-
-    printf("Zadatak azuriran.\n");
-}
-
-// Brisanje zadatka
-void obrisiZadatak() {
-    int id;
-    printf("Unesi ID za brisanje: ");
-    scanf("%d", &id); getchar();
-
-    Zadatak* p = glava;
-    Zadatak* prethodni = NULL;
-
-    while (p && (*p).id != id) {
-        prethodni = p;
-        p = (*p).sljedeci;
-    }
-
-    if (!p) {
-        printf("Zadatak nije pronadjen.\n");
-        return;
-    }
-
-    if (!prethodni) glava = (*p).sljedeci;
-    else (*prethodni).sljedeci = (*p).sljedeci;
-
-    free(p);
-    printf("Zadatak obrisan.\n");
-}
-
-// Umetanje na odredjenu poziciju
-void umetniNaPoziciju() {
-    int poz;
-    printf("Unesi poziciju: ");
-    scanf("%d", &poz); getchar();
-
-    if (poz < 1) {
-        printf("Neispravna pozicija.\n");
-        return;
-    }
-
-    Zadatak* novi = malloc(sizeof(Zadatak));
-    if (!novi) return;
-
-    (*novi).id = ++zadnjiID;
-
-    printf("Unesi naziv: ");
-    fgets((*novi).naziv, MAX_NAZIV, stdin);
-    (*novi).naziv[strcspn((*novi).naziv, "\n")] = '\0';
-
-    printf("Unesi opis: ");
-    fgets((*novi).opis, MAX_OPIS, stdin);
-    (*novi).opis[strcspn((*novi).opis, "\n")] = '\0';
-
-    printf("Prioritet: ");
-    int p; scanf("%d", &p); getchar();
-    (*novi).prioritet = (Prioritet)p;
-
-    if (poz == 1) {
-        (*novi).sljedeci = glava;
-        glava = novi;
-    }
-    else {
-        Zadatak* t = glava;
-        for (int i = 1; t && i < poz - 1; i++) t = (*t).sljedeci;
-
-        if (!t) {
-            printf("Pozicija ne postoji.\n");
-            free(novi);
+    char linija[200];
+    while (fgets(linija, sizeof(linija), dat)) {
+        Zadatak* novi = (Zadatak*)malloc(sizeof(Zadatak));
+        if (!novi) {
+            perror("malloc");
+            fclose(dat);
             return;
         }
 
-        (*novi).sljedeci = (*t).sljedeci;
-        (*t).sljedeci = novi;
-    }
-
-    printf("Zadatak umetnut.\n");
-}
-
-// Funkcija za usporedbu po prioritetu
-int usporediPoPrioritetu(Zadatak* a, Zadatak* b) {
-    return (*a).prioritet - (*b).prioritet;
-}
-
-// Sortiranje zadataka (okazivač na funkciju za usporedbu)
-void sortirajZadatke(usporedbaFunkcija f) {
-    if (!glava || !(*glava).sljedeci) return;
-
-    int n = 0;
-    Zadatak* p = glava;
-    while (p) { n++; p = (*p).sljedeci; }
-
-    Zadatak** niz = malloc(n * sizeof(Zadatak*));
-    p = glava;
-    for (int i = 0; i < n; i++) {
-        niz[i] = p;
-        p = (*p).sljedeci;
-    }
-
-    for (int i = 0; i < n - 1; i++) {
-        for (int j = i + 1; j < n; j++) {
-            if (f(niz[i], niz[j]) > 0) {
-                Zadatak* temp = niz[i];
-                niz[i] = niz[j];
-                niz[j] = temp;
-            }
+        // Parsiramo redak iz datoteke
+        if (sscanf(linija, "%d | %49[^|]| %99[^|]| %d", &novi->id, novi->naziv, novi->opis, (int*)&novi->prioritet) == 4) {
+            novi->sljedeci = glava;
+            glava = novi;
+        } else {
+            free(novi);
         }
     }
 
-    for (int i = 0; i < n - 1; i++)
-        (*niz[i]).sljedeci = niz[i + 1];
-    (*niz[n - 1]).sljedeci = NULL;
-    glava = niz[0];
+    if (ferror(dat)) perror("Greska pri citanju datoteke");
 
-    free(niz);
-    printf("Zadaci sortirani.\n");
+    fclose(dat);
 }
 
-// Pretraga po ID
-void traziZadatak() {
-    int id;
-    printf("Unesi ID za pretragu: ");
-    scanf("%d", &id); getchar();
-
-    Zadatak* z = nadjiZadatak(id);
-    if (z)
-        printf("Naziv: %s\nOpis: %s\nPrioritet: %d\n", (*z).naziv, (*z).opis, (*z).prioritet);
-    else
-        printf("Zadatak nije pronadjen.\n");
-}
-
-// Ucitavanje iz datoteke
-void ucitajIzDatoteke() {
-    FILE* f = fopen(NAZIV_DATOTEKE, "r");
-    if (!f) return;
-
-    Zadatak temp;
-    while (fread(&temp, sizeof(Zadatak), 1, f)) {
-        Zadatak* novi = malloc(sizeof(Zadatak));
-        *novi = temp;
-        (*novi).sljedeci = glava;
-        glava = novi;
-
-        if ((*novi).id > zadnjiID)
-            zadnjiID = (*novi).id;
-    }
-
-    fclose(f);
-}
-
-// Spremanje u tekstualnu datoteku
+// Spremanje liste zadataka u .txt datoteku
 void spremiUDatoteku() {
-    FILE* f = fopen(NAZIV_DATOTEKE, "w");
-    if (!f) {
-        printf("Greška pri otvaranju datoteke!\n");
+    FILE* dat = fopen(NAZIV_DATOTEKE, "w");
+    if (!dat) {
+        perror("fopen");
         return;
     }
 
-    Zadatak* p = glava;
-    while (p) {
-        fprintf(f, "ID: %d\n", (*p).id);
-        fprintf(f, "Naziv: %s\n", (*p).naziv);
-        fprintf(f, "Opis: %s\n", (*p).opis);
-        fprintf(f, "Prioritet: %d\n", (*p).prioritet);
-        fprintf(f, "-----------------------------\n");
-
-        p = (*p).sljedeci;
+    Zadatak* tren = glava;
+    while (tren) {
+        fseek(dat, 0, SEEK_CUR); // pozicioniranje
+        fprintf(dat, "%d | %s| %s| %d\n", tren->id, tren->naziv, tren->opis, tren->prioritet);
+        tren = tren->sljedeci;
     }
 
-    fclose(f);
-    printf("Zadaci spremljeni u tekstualnu datoteku.\n");
+    if (ferror(dat)) perror("Greska pri pisanju u datoteku");
+
+    fclose(dat);
 }
 
-// Oslobodi memoriju
+// Dodavanje novog zadatka
+void dodajZadatak() {
+    Zadatak* novi = (Zadatak*)malloc(sizeof(Zadatak));
+    if (!novi) return;
+
+    novi->id = dajSljedeciID();
+
+    printf("Unesite naziv: ");
+    scanf(" %49[^\n]", novi->naziv);
+    printf("Unesite opis: ");
+    scanf(" %99[^\n]", novi->opis);
+    printf("Unesite prioritet (1-nizak, 2-srednji, 3-visok): ");
+    scanf("%d", (int*)&novi->prioritet);
+
+    novi->sljedeci = glava;
+    glava = novi;
+
+    spremiUDatoteku(); // automatsko spremanje
+}
+
+// Prikaz svih zadataka
+void prikaziZadatke() {
+    Zadatak* tren = glava;
+    while (tren) {
+        printf("ID: %d | Naziv: %s | Opis: %s | Prioritet: %d\n", tren->id, tren->naziv, tren->opis, tren->prioritet);
+        tren = tren->sljedeci;
+    }
+}
+
+// Ažuriranje zadatka po ID-u
+void azurirajZadatak() {
+    int id;
+    printf("Unesite ID za azuriranje: ");
+    scanf("%d", &id);
+    Zadatak* tren = glava;
+    while (tren) {
+        if (tren->id == id) {
+            printf("Novi naziv: "); scanf(" %49[^\n]", tren->naziv);
+            printf("Novi opis: "); scanf(" %99[^\n]", tren->opis);
+            printf("Novi prioritet: "); scanf("%d", (int*)&tren->prioritet);
+            spremiUDatoteku();
+            return;
+        }
+        tren = tren->sljedeci;
+    }
+}
+
+// Brisanje zadatka po ID-u
+void obrisiZadatak() {
+    int id;
+    printf("Unesite ID za brisanje: ");
+    scanf("%d", &id);
+    Zadatak* tren = glava;
+    Zadatak* prev = NULL;
+    while (tren) {
+        if (tren->id == id) {
+            if (prev) prev->sljedeci = tren->sljedeci;
+            else glava = tren->sljedeci;
+            free(tren);
+            spremiUDatoteku();
+            return;
+        }
+        prev = tren;
+        tren = tren->sljedeci;
+    }
+}
+
+// Umetanje zadatka na određenu poziciju
+void umetniNaPoziciju() {
+    int poz;
+    printf("Na koju poziciju zelite umetnuti: ");
+    scanf("%d", &poz);
+    Zadatak* novi = (Zadatak*)malloc(sizeof(Zadatak));
+    if (!novi) return;
+
+    novi->id = dajSljedeciID();
+    printf("Unesite naziv: ");
+    scanf(" %49[^\n]", novi->naziv);
+    printf("Unesite opis: ");
+    scanf(" %99[^\n]", novi->opis);
+    printf("Unesite prioritet: ");
+    scanf("%d", (int*)&novi->prioritet);
+
+    if (poz == 0 || !glava) {
+        novi->sljedeci = glava;
+        glava = novi;
+    } else {
+        Zadatak* tren = glava;
+        for (int i = 0; i < poz - 1 && tren->sljedeci; i++) tren = tren->sljedeci;
+        novi->sljedeci = tren->sljedeci;
+        tren->sljedeci = novi;
+    }
+    spremiUDatoteku();
+}
+
+// Funkcija za usporedbu zadataka po prioritetu (za sortiranje)
+int usporediZadatke(const void* a, const void* b) {
+    Zadatak* z1 = *(Zadatak**)a;
+    Zadatak* z2 = *(Zadatak**)b;
+    return z1->prioritet - z2->prioritet;
+}
+
+// Sortiranje zadataka pomoću qsort
+void sortirajZadatke(int (*usporedi)(const void*, const void*)) {
+    int n = 0;
+    Zadatak* tren = glava;
+    while (tren) { n++; tren = tren->sljedeci; }
+
+    if (n < 2) return;
+
+    Zadatak** niz = calloc(n, sizeof(Zadatak*));
+    if (!niz) return;
+
+    tren = glava;
+    for (int i = 0; i < n; i++) {
+        niz[i] = tren;
+        tren = tren->sljedeci;
+    }
+
+    qsort(niz, n, sizeof(Zadatak*), usporedi);
+
+    for (int i = 0; i < n - 1; i++) niz[i]->sljedeci = niz[i + 1];
+    niz[n - 1]->sljedeci = NULL;
+    glava = niz[0];
+
+    free(niz);
+    spremiUDatoteku();
+}
+
+// Pretraga zadatka po ID-u
+void traziZadatak() {
+    int id;
+    printf("Unesite ID za pretragu: ");
+    scanf("%d", &id);
+
+    Zadatak* tren = glava;
+    while (tren) {
+        if (tren->id == id) {
+            printf("Pronadjen: %s - %s\n", tren->naziv, tren->opis);
+            return;
+        }
+        tren = tren->sljedeci;
+    }
+    printf("Zadatak nije pronadjen.\n");
+}
+
+// Oslobađanje dinamički alocirane memorije
 void oslobodiMemoriju() {
-    while (glava) {
-        Zadatak* zaBrisanje = glava;
-        glava = (*glava).sljedeci;
+    Zadatak* tren = glava;
+    while (tren) {
+        Zadatak* zaBrisanje = tren;
+        tren = tren->sljedeci;
         free(zaBrisanje);
     }
+    glava = NULL;
+}
+
+// Preimenovanje datoteke pomoću rename()
+void preimenujDatoteku() {
+    char novoIme[100];
+    printf("Unesite novo ime za datoteku: ");
+    scanf(" %99[^\n]", novoIme);
+    if (rename(NAZIV_DATOTEKE, novoIme) != 0) perror("rename");
+    else printf("Datoteka preimenovana.\n");
+}
+
+// Brisanje datoteke pomoću remove()
+void obrisiDatoteku() {
+    if (remove(NAZIV_DATOTEKE) != 0) perror("remove");
+    else printf("Datoteka obrisana.\n");
 }
