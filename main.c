@@ -1,40 +1,39 @@
+// main.c
 #define _CRT_SECURE_NO_WARNINGS
-
 #include <stdio.h>
 #include "todo.h"
 
 int main() {
     int izbor;
-
-    // Ucitaj zadatke iz datoteke
     ucitajIzDatoteke();
 
     do {
-        // Glavni izbornik
-        printf("\n==== To-Do Lista ====\n");
+        printf("\n--- TO-DO LIST IZBORNIK ---\n");
         printf("1. Dodaj zadatak\n");
         printf("2. Prikazi zadatke\n");
         printf("3. Azuriraj zadatak\n");
         printf("4. Obrisi zadatak\n");
         printf("5. Umetni zadatak na poziciju\n");
-        printf("6. Sortiraj po prioritetu\n");
-        printf("7. Pretrazi po ID\n");
-        printf("8. Spremi u datoteku\n");
+        printf("6. Sortiraj zadatke po prioritetu\n");
+        printf("7. Pretrazi zadatke po ID-u\n");
+        printf("8. Preimenuj datoteku\n");
+        printf("9. Obrisi datoteku\n");
         printf("0. Izlaz\n");
-        printf("Izbor: ");
-        scanf("%d", &izbor); getchar();
+        printf("Odabir: ");
+        scanf("%d", &izbor);
 
         switch (izbor) {
-        case 1: dodajZadatak(); break;
-        case 2: prikaziZadatke(); break;
-        case 3: azurirajZadatak(); break;
-        case 4: obrisiZadatak(); break;
-        case 5: umetniNaPoziciju(); break;
-        case 6: sortirajZadatke(usporediPoPrioritetu); break;
-        case 7: traziZadatak(); break;
-        case 8: spremiUDatoteku(); break;
-        case 0: spremiUDatoteku(); oslobodiMemoriju(); printf("Izlaz.\n"); break;
-        default: printf("Neispravan unos.\n");
+            case 1: dodajZadatak(); break;
+            case 2: prikaziZadatke(); break;
+            case 3: azurirajZadatak(); break;
+            case 4: obrisiZadatak(); break;
+            case 5: umetniNaPoziciju(); break;
+            case 6: sortirajZadatke(usporediZadatke); break;
+            case 7: traziZadatak(); break;
+            case 8: preimenujDatoteku(); break;
+            case 9: obrisiDatoteku(); break;
+            case 0: oslobodiMemoriju(); break;
+            default: printf("Nepoznata opcija.\n");
         }
 
     } while (izbor != 0);
